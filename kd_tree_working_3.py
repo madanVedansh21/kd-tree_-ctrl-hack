@@ -460,7 +460,7 @@ class RobustMultimessengerCorrelator:
         - max_time_window: seconds
         - max_spatial_search_deg: degrees
         - min_confidence: minimal confidence to keep
-        - target_top_n: number of top correlations to return/display
+            - target_top_n: number of top correlations to return/display (default 200)
         """
         if self.combined_data is None or self.combined_data.shape[0] == 0:
             print("No data loaded.")

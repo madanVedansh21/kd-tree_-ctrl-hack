@@ -53,7 +53,7 @@ def correlate():
         correlator = RobustMultimessengerCorrelator(csv_directory=data_dir)
         correlator.load_csv_files()
         # Save all correlations to CSV
-        results = correlator.find_correlations(target_top_n=200, output_file="multimessenger_correlations.csv")
+            results = correlator.find_correlations(target_top_n=200, output_file="multimessenger_correlations.csv")
         if results is None or results.empty:
             return jsonify({"results": []})
 
