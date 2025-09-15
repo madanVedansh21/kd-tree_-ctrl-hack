@@ -393,7 +393,63 @@ class RobustMultimessengerCorrelator:
         else:
             result.update({"angular_sep_deg": np.nan, "combined_error_deg": np.nan, "within_error_circle": False})
 
+        # Add individual event details for schema compatibility (event1 = gw, event2 = grb)
+        result.update({
+            # Event 1 (GW) details
+            "gw_time": event1_row.get("utc_time", None),
+            "gw_ra": event1_row.get("ra_deg", np.nan),
+            "gw_dec": event1_row.get("dec_deg", np.nan),
+            "gw_snr": event1_row.get("signal_strength", np.nan),
+            "gw_pos_error": event1_row.get("pos_error_deg", np.nan),
+            
+            # Event 2 (GRB) details
+            "grb_time": event2_row.get("utc_time", None),
+            "grb_ra": event2_row.get("ra_deg", np.nan),
+            "grb_dec": event2_row.get("dec_deg", np.nan),
+            "grb_flux": event2_row.get("signal_strength", np.nan),
+            "grb_pos_error": event2_row.get("pos_error_deg", np.nan),
+        })
+
         return result
+
+    def _convert_to_schema_format(self, results_df):
+        """
+        Convert internal results format to match the required schema output format.
+        Maps event1/event2 to gw/grb format as specified.
+        """
+        if results_df is None or results_df.empty:
+            return pd.DataFrame()
+        
+        # Create new DataFrame with schema-compliant columns
+        schema_df = pd.DataFrame()
+        
+        # Direct mappings
+        schema_df["rank"] = results_df["rank"]
+        schema_df["gw_event_id"] = results_df["event1_id"]
+        schema_df["grb_event_id"] = results_df["event2_id"]
+        schema_df["confidence_score"] = results_df["confidence_score"]
+        schema_df["time_diff_sec"] = results_df["time_diff_sec"]
+        schema_df["time_diff_hours"] = results_df["time_diff_hours"]
+        schema_df["angular_sep_deg"] = results_df["angular_sep_deg"]
+        schema_df["within_error_circle"] = results_df["within_error_circle"]
+        schema_df["temporal_score"] = results_df["temporal_score"]
+        schema_df["spatial_score"] = results_df["spatial_score"]
+        schema_df["significance_score"] = results_df["significance_score"]
+        schema_df["combined_error_deg"] = results_df["combined_error_deg"]
+        
+        # Event-specific details
+        schema_df["gw_time"] = results_df["gw_time"]
+        schema_df["grb_time"] = results_df["grb_time"]
+        schema_df["gw_ra"] = results_df["gw_ra"]
+        schema_df["gw_dec"] = results_df["gw_dec"]
+        schema_df["grb_ra"] = results_df["grb_ra"]
+        schema_df["grb_dec"] = results_df["grb_dec"]
+        schema_df["gw_snr"] = results_df["gw_snr"]
+        schema_df["grb_flux"] = results_df["grb_flux"]
+        schema_df["gw_pos_error"] = results_df["gw_pos_error"]
+        schema_df["grb_pos_error"] = results_df["grb_pos_error"]
+        
+        return schema_df
 
     # -------------------------
     # Main correlation function (efficient)
@@ -483,44 +539,26 @@ class RobustMultimessengerCorrelator:
         results_df = results_df.sort_values(["reliability", "confidence_score", "adaptive_score"], ascending=[False, False, False]).reset_index(drop=True)
         results_df["rank"] = range(1, len(results_df) + 1)
 
-        # ensure CSV contains the requested columns for frontend
-        output_columns = [
-            "rank",
-            "event1_id", "dataset1",
-            "event2_id", "dataset2",
-            "temporal_score", "spatial_score", "significance_score",
-            "adaptive_score", "confidence_score", "reliability",
-            "available_components",
-            "angular_sep_deg", "combined_error_deg", "within_error_circle",
-            "time_diff_sec", "time_diff_hours","time_diff_hrs_readable" , 
-        ]
-        # add any missing columns as NaN to preserve consistent schema
-        for c in output_columns:
-            if c not in results_df.columns:
-                results_df[c] = np.nan
-
+        # Filter out rows with missing temporal data for schema compliance
         results_df = results_df.dropna(subset=["time_diff_hours"])
 
-        # Convert hours to timedelta correctly
-        results_df["time_diff_hrs_readable"] = results_df["time_diff_hours"].apply(
-            lambda x: "N/A" if pd.isna(x) else str(timedelta(hours=x))
-        )
+        # Convert to schema format
+        schema_results = self._convert_to_schema_format(results_df)
 
-
-
-        results_df_out = results_df[output_columns].copy()
-
-        # save only top-N results to output file if requested
+        # save schema-compliant results
         if output_file:
             # ensure UTF-8 with BOM for Excel compatibility
-            results_df_out.head(target_top_n).to_csv(output_file, index=False, encoding="utf-8-sig")
-            print(f"Saved results to {output_file}")
+            schema_results.to_csv(output_file, index=False, encoding="utf-8-sig")
+            print(f"Saved schema-compliant results to {output_file}")
 
-        # display top-N
+        # display top-N using original format for readability
         topn = results_df.head(target_top_n)
         self._display_results(topn)
 
-        return results_df_out.head(target_top_n)
+        # Store original results for statistics
+        self._original_results = results_df
+
+        return schema_results
 
     # -------------------------
     # Utility display and saving
@@ -658,8 +696,9 @@ def main():
 
     # generate stats and report
     if results is not None and not results.empty:
-        # results is the exported schema containing astrophysical fields
-        generate_advanced_statistics(correlator, results)
+        # Use original results for statistics (contains all internal fields)
+        original_results = getattr(correlator, '_original_results', results)
+        generate_advanced_statistics(correlator, original_results)
         generate_hackathon_report(correlator, results, filename="hackathon_technical_report.txt")
         print(f"\nFound {len(results)} correlations. Top {min(50, len(results))} saved/displayed.")
     else:
