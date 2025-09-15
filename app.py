@@ -2,9 +2,11 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import os
 from kd_tree_working_3 import RobustMultimessengerCorrelator
+from flask_cors import CORS
 from flask import send_file, after_this_request
 
 app = Flask(__name__)
+CORS(app)  # Allow all origins
 
 # Load correlator with default data directory (can be changed per request)
 def get_correlator(csv_directory="./data"):

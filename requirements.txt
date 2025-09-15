@@ -1,4 +1,5 @@
-flask
 pandas
 numpy
+flask
+flask-cors
 scipy
