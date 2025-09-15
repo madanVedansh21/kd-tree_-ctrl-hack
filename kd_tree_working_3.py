@@ -510,17 +510,17 @@ class RobustMultimessengerCorrelator:
 
         results_df_out = results_df[output_columns].copy()
 
-        # save full results optionally
+        # save only top-N results to output file if requested
         if output_file:
             # ensure UTF-8 with BOM for Excel compatibility
-            results_df_out.to_csv(output_file, index=False, encoding="utf-8-sig")
+            results_df_out.head(target_top_n).to_csv(output_file, index=False, encoding="utf-8-sig")
             print(f"Saved results to {output_file}")
 
         # display top-N
         topn = results_df.head(target_top_n)
         self._display_results(topn)
 
-        return results_df_out
+        return results_df_out.head(target_top_n)
 
     # -------------------------
     # Utility display and saving

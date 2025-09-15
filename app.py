@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 import pandas as pd
 import os
 from kd_tree_working_3 import RobustMultimessengerCorrelator
 from flask_cors import CORS
 from flask import send_file, after_this_request
 import uuid
+import json
 
 app = Flask(__name__)
 CORS(app)  # Allow all origins
@@ -52,7 +53,7 @@ def correlate():
         correlator = RobustMultimessengerCorrelator(csv_directory=data_dir)
         correlator.load_csv_files()
         # Save all correlations to CSV
-        results = correlator.find_correlations(target_top_n=1000000, output_file="multimessenger_correlations.csv")
+        results = correlator.find_correlations(target_top_n=200, output_file="multimessenger_correlations.csv")
         if results is None or results.empty:
             return jsonify({"results": []})
 
@@ -77,13 +78,17 @@ def correlate():
             # Optionally clean up uploaded files if needed
             return response
 
-        return send_file(
-            "multimessenger_correlations.csv",
-            mimetype="text/csv",
-            as_attachment=True,
-            download_name="multimessenger_correlations.csv",
-            etag=False
-        ), 200, {"X-Performance-Metrics": jsonify(perf_metrics).get_data(as_text=True)}
+        response = make_response(
+            send_file(
+                "multimessenger_correlations.csv",
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name="multimessenger_correlations.csv",
+                etag=False
+            )
+        )
+        response.headers["X-Performance-Metrics"] = json.dumps(perf_metrics, separators=(',', ':'))
+        return response
     except Exception as e:
         # Log the error only once
         print(f"Error in /correlate: {e}")
