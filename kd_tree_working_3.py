@@ -545,10 +545,13 @@ class RobustMultimessengerCorrelator:
         # Convert to schema format
         schema_results = self._convert_to_schema_format(results_df)
 
-        # save schema-compliant results
+        # Limit to top N results
+        top_schema_results = schema_results.head(target_top_n)
+
+        # save schema-compliant results (only top N)
         if output_file:
             # ensure UTF-8 with BOM for Excel compatibility
-            schema_results.to_csv(output_file, index=False, encoding="utf-8-sig")
+            top_schema_results.to_csv(output_file, index=False, encoding="utf-8-sig")
             print(f"Saved schema-compliant results to {output_file}")
 
         # display top-N using original format for readability
@@ -558,7 +561,7 @@ class RobustMultimessengerCorrelator:
         # Store original results for statistics
         self._original_results = results_df
 
-        return schema_results
+        return top_schema_results
 
     # -------------------------
     # Utility display and saving
