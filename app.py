@@ -57,6 +57,27 @@ def correlate():
         if results is None or results.empty:
             return jsonify({"results": []})
 
+        # Return both CSV and JSON results
+        # Prepare response: send CSV file and JSON metrics
+        @after_this_request
+        def cleanup(response):
+            # Optionally clean up uploaded files if needed
+            return response
+
+        response = make_response(
+            send_file(
+                "multimessenger_correlations.csv",
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name="multimessenger_correlations.csv",
+                etag=False
+            )
+        )
+        response.headers["X-Performance-Metrics"] = json.dumps(perf_metrics, separators=(',', ':'))
+        # Add top 200 results as JSON in a custom header (if not too large) or as a separate endpoint
+        # For now, return JSON directly for API usage
+        return jsonify({"results": results.to_dict(orient="records")})
+
         # Read performance metrics from hackathon_technical_report.txt (lines 9-12)
         perf_metrics = {}
         try:
