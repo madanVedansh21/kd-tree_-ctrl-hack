@@ -55,43 +55,25 @@ def correlate():
         # Save all correlations to CSV
         results = correlator.find_correlations(target_top_n=200, output_file="multimessenger_correlations.csv")
         if results is None or results.empty:
-            return jsonify({"results": []})
-
-        # Return both CSV and JSON results
-        # Prepare response: send CSV file and JSON metrics
-        @after_this_request
-        def cleanup(response):
-            # Optionally clean up uploaded files if needed
-            return response
-
-        response = make_response(
-            send_file(
+            # If no results, return a CSV with just headers
+            empty_df = pd.DataFrame()
+            empty_df.to_csv("multimessenger_correlations.csv", index=False, encoding="utf-8-sig")
+            return send_file(
                 "multimessenger_correlations.csv",
                 mimetype="text/csv",
                 as_attachment=True,
                 download_name="multimessenger_correlations.csv",
                 etag=False
             )
-        )
-        response.headers["X-Performance-Metrics"] = json.dumps(perf_metrics, separators=(',', ':'))
-        # Add top 200 results as JSON in a custom header (if not too large) or as a separate endpoint
-        # For now, return JSON directly for API usage
-        return jsonify({"results": results.to_dict(orient="records")})
 
-        # Read performance metrics from hackathon_technical_report.txt (lines 9-12)
-        perf_metrics = {}
-        try:
-            with open("hackathon_technical_report.txt", "r", encoding="utf-8") as f:
-                lines = f.readlines()
-                for line in lines:
-                    if line.strip().startswith("Total Events Processed"):
-                        perf_metrics["Total Events Processed"] = int(line.split(":")[-1].strip())
-                    elif line.strip().startswith("Datasets Successfully Loaded"):
-                        perf_metrics["Datasets Successfully Loaded"] = int(line.split(":")[-1].strip())
-                    elif line.strip().startswith("Valid Correlations Found"):
-                        perf_metrics["Valid Correlations Found"] = int(line.split(":")[-1].strip())
-        except Exception as e:
-            perf_metrics = {"error": f"Could not read performance metrics: {str(e)}"}
+        # Only send the CSV file for download (top 200 results)
+        return send_file(
+            "multimessenger_correlations.csv",
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="multimessenger_correlations.csv",
+            etag=False
+        )
 
         # Prepare response: send CSV file and JSON metrics
         @after_this_request
